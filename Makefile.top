@@ -1,0 +1,107 @@
+#=======================================================================
+# Makefile for testbench
+#-----------------------------------------------------------------------
+
+default : bsv-compile rs-compile test-bsv
+
+test : rs-compile create-test-files test-bsv
+
+fpga :
+	cd fpga_bsv; make
+
+fpga-clean :
+	cd fpga_bsv; make clean
+ 
+#--------------------------------------------------------------------
+# Build BlueSpec Reed-Solomon Decoder
+#--------------------------------------------------------------------
+
+.PHONY : bsv-compile
+
+bsv-compile :
+	cd bsv; make
+
+bsv-compile-clean :
+	cd bsv; make clean
+
+tools += bsv-compile
+
+
+#--------------------------------------------------------------------
+# Build CPP Reed-Solomon Codec
+#--------------------------------------------------------------------
+
+.PHONY : rs-compile
+
+cppdir  = ../src/software/
+
+rs-compile :
+	cd $(cppdir); make reedsolomon
+
+rs-compile-clean :
+	cd $(cppdir); make clean
+
+tools += rs-compile
+
+
+#--------------------------------------------------------------------
+# Create test files
+#--------------------------------------------------------------------
+
+tests = 0
+blocks = 200
+
+.PHONY : create-test-files
+
+create-test-files :
+	echo "Creating $(tests) messages with random data lengths, parities & errors."
+	for X in `seq 0 $(tests)`; do sleep 1; $(cppdir)/reedsolomon c $(blocks) output/msg.$$X; done;
+
+
+#--------------------------------------------------------------------
+# Test BlueSpec Reed-Solomon Decoder
+#--------------------------------------------------------------------
+
+.PHONY : test-bsv
+
+test-bsv :
+	@echo "Deleting previous test outputs"
+	@cd bsv; for X in `seq 0 $(tests)`; do rm -f bsim.$$X.out; done
+	@rm -f output/failures.txt
+	@if [ ! -d output/l$(blocks) ]; then  mkdir output/l$(blocks); fi
+	@echo
+	@cd bsv; for X in `seq 0 $(tests)`; do \
+		echo test $$X; \
+		cp ../output/msg.$$X.crpt ../output/input.dat; \
+		rm -f bsim.$$X.out; \
+		./bsim > bsim.$$X.out; \
+		rm -f diff.out; \
+		diff ../output/msg.$$X ../output/output.dat > diff.out; \
+		if [ $$? != "0" ]; then \
+			echo "Test $$X failed"; \
+			echo "Test $$X failed" >> ../output/l$(blocks)/failures.txt; \
+			cp ../output/msg.$$X* ../output/l$(blocks); \
+			cp ../output/output.dat ../output/l$(blocks)/msg.$$X.dcrpt; \
+			cp bsim.$$X.out ../output/l$(blocks)/bsim.$$X.out; \
+		fi; \
+		done;
+#	@cd bsv; for X in `seq 0 $(tests)`; do rm -f bsim.$$X.out; rm -f msg.$$X*; done
+#	@cd bsv; for X in `seq 0 $(tests)`; rm -f msg.$$X*; done
+
+
+#--------------------------------------------------------------------
+# clean
+#--------------------------------------------------------------------
+
+clean :
+	@echo ""; \
+	echo -n "  Are you sure you want to do a FULL clean? [Y/N] "; \
+	read ans; \
+	if [ "$$ans" == "Y" ]; \
+	then \
+	  for tool in $(tools); \
+	  do \
+        cd $$tool; make clean; cd ..; \
+	  done; \
+	fi; \
+	echo ""; 
