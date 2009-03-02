@@ -1,0 +1,14 @@
+Reed-Solomon decoder design for C-based synthesis
+
+Top level decoder module: rs_decode.cpp
+Simple Testbench: test_rs_decode.cpp
+
+Presently dynamic values of k and t are not used in the decoding process. 
+Instead the static constants in global_rs.h are used for simplicity.
+
+Executing make compiles the decoder and the testbench and creates an executable.
+Correct execution is indicated by the decoded output being a descending count 
+from 223 to 1, repeated 3 times.
+
+For synthesis, import into a C based design tool, set appropriate HW parameters
+and synthesize for a particular platform.
